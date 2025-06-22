@@ -138,7 +138,36 @@ for i in range(100):
 
                 dZj_L_dai_L1 = output_layer_matrix[j][i]
                 dLoss_dai_L1 = dLoss_dZj_L * dZj_L_dai_L1
-            
+
+                dai_L1_dZi_L1 = 0
+                if (layer_2_output > 0):
+                    dai_L1_dZi_L1 = 1
+                
+                dzi_L1_dbi_L1 = 1
+                dLoss_dbi_L1 = dLoss_dai_L1 * dai_L1_dZi_L1 * dzi_L1_dbi_L1
+                bias_vector_2_gradient.append(dLoss_dbi_L1)
+
+                for k in range(0, 16):
+                    dZi_L1_dwik_L1 = layer_1_processed[k]
+                    dLoss_dwik_L1 = dLoss_dai_L1 * dai_L1_dZi_L1 * dZi_L1_dwik_L1
+                    layer_2_matrix_gradient.append(dLoss_dwik_L1)
+
+                    dak_L2_dZk_L2 = 0
+                    if (layer_1_output > 0):
+                        dak_L2_dZk_L2 = 1
+
+                    dZi_L1_dak_L2 = layer_2_matrix[i][k]
+                    dLoss_dak_L2 = dLoss_dai_L1 * dai_L1_dZi_L1 * dZi_L1_dak_L2
+
+                    dZk_L2_dbk_L2 = 1
+                    dLoss_dbk_L2 = dLoss_dak_L2 * dak_L2_dZk_L2 * dZk_L2_dbk_L2
+                    bias_vector_1_gradient.append(dLoss_dbk_L2)
+
+                    for n in range(0, 784):
+                        dZk_L2_dwkn_L2 = input_vector[n]
+                        dLoss_dwkn_L2 = dLoss_dak_L2 * dak_L2_dZk_L2 * dZk_L2_dwkn_L2
+                        layer_1_matrix_gradient.append(dLoss_dwkn_L2)
+
 
         gradient_components = bias_vector_1_gradient + bias_vector_2_gradient + bias_vector_output_gradient + layer_1_matrix_gradient + layer_2_matrix_gradient + output_layer_matrix_gradient
 
