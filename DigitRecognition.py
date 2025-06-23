@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 images = []
-subsetSize = 20
+subsetSize = 10
 directory = 'MNIST Dataset JPG format/MNIST - JPG - testing'
 
 for i in range(0, 10):
@@ -47,11 +47,13 @@ def saveMatrix(matrix, file_path):
     # print(f"Matrix saved to {file_path}")
 
 def relu(vector):
-    return np.maximum(0, vector)
+    return np.maximum(0.1*vector, vector) # leaky relu
 
 def softmax(vector):
     vector = vector.flatten() # Ensure it's 1D
-    exps = np.exp(vector - np.max(vector))      # since exponent the relative sizes will be same (can factor out the largest thing), so like can just initially subtract the largest since then have to do smaller exponents
+    shifted_vector = vector - np.max(vector)    # since exponent the relative sizes will be same (can factor out the largest thing), so like can just initially subtract the largest since then have to do smaller exponents
+    clipped_vector = np.clip(shifted_vector, -200, 200)  # so the tiny e^-1000 doesnt become zero so it doesnt change that index
+    exps = np.exp(clipped_vector)
     return exps / np.sum(exps)
 
 # load weights and biases
@@ -71,9 +73,13 @@ bias_vector_output = matrixFromFile('outputLayerBiases.txt')
 # output layer (10 x 16 matrix), multiply by new input vector, subtract bias, pass this through sigmoid/relu
 output_layer_matrix  = matrixFromFile('outputLayerWeights.txt')
 
+all_losses = []
+epochs = 20
 
-for i in range(100):
+for t in range(epochs):
     gradient_list = []
+    total_loss = 0
+
     for image in images:
         gradient_components = []
 
@@ -112,6 +118,8 @@ for i in range(100):
         eps = 1e-12
         loss = -np.log(final_output_vector[labelled_number] + eps)    # cross-entropy
         print(loss)
+        total_loss += loss
+
 
 
         # use chain rule relationships to get the gradient for the given image
@@ -129,31 +137,31 @@ for i in range(100):
             
             dZj_L_dbj_L = 1
             dLoss_dbj_L = dLoss_dZj_L * dZj_L_dbj_L
-            bias_vector_output_gradient.append(dLoss_dbj_L)
+            bias_vector_output_gradient.append(float(dLoss_dbj_L))
 
             for i in range(0, 16):
                 dZj_L_dwji_L = layer_2_processed[i]
                 dLoss_dwji_L = dLoss_dZj_L * dZj_L_dwji_L
-                output_layer_matrix_gradient.append(dLoss_dwji_L)
+                output_layer_matrix_gradient.append(float(dLoss_dwji_L))
 
                 dZj_L_dai_L1 = output_layer_matrix[j][i]
                 dLoss_dai_L1 = dLoss_dZj_L * dZj_L_dai_L1
 
                 dai_L1_dZi_L1 = 0
-                if (layer_2_output > 0):
+                if (layer_2_output[i][0] > 0):  # need this [0] since technically it a 2d array with one column
                     dai_L1_dZi_L1 = 1
                 
                 dzi_L1_dbi_L1 = 1
                 dLoss_dbi_L1 = dLoss_dai_L1 * dai_L1_dZi_L1 * dzi_L1_dbi_L1
-                bias_vector_2_gradient.append(dLoss_dbi_L1)
+                bias_vector_2_gradient.append(float(dLoss_dbi_L1))
 
                 for k in range(0, 16):
                     dZi_L1_dwik_L1 = layer_1_processed[k]
                     dLoss_dwik_L1 = dLoss_dai_L1 * dai_L1_dZi_L1 * dZi_L1_dwik_L1
-                    layer_2_matrix_gradient.append(dLoss_dwik_L1)
+                    layer_2_matrix_gradient.append(float(dLoss_dwik_L1))
 
                     dak_L2_dZk_L2 = 0
-                    if (layer_1_output > 0):
+                    if (layer_1_output[k][0] > 0):
                         dak_L2_dZk_L2 = 1
 
                     dZi_L1_dak_L2 = layer_2_matrix[i][k]
@@ -161,45 +169,84 @@ for i in range(100):
 
                     dZk_L2_dbk_L2 = 1
                     dLoss_dbk_L2 = dLoss_dak_L2 * dak_L2_dZk_L2 * dZk_L2_dbk_L2
-                    bias_vector_1_gradient.append(dLoss_dbk_L2)
+                    bias_vector_1_gradient.append(float(dLoss_dbk_L2))
 
                     for n in range(0, 784):
-                        dZk_L2_dwkn_L2 = input_vector[n]
+                        dZk_L2_dwkn_L2 = input_vector[n][0]
                         dLoss_dwkn_L2 = dLoss_dak_L2 * dak_L2_dZk_L2 * dZk_L2_dwkn_L2
-                        layer_1_matrix_gradient.append(dLoss_dwkn_L2)
+                        layer_1_matrix_gradient.append(float(dLoss_dwkn_L2))
 
 
         gradient_components = bias_vector_1_gradient + bias_vector_2_gradient + bias_vector_output_gradient + layer_1_matrix_gradient + layer_2_matrix_gradient + output_layer_matrix_gradient
 
         gradient_list.append(np.array(gradient_components))
          
+    avg_loss = total_loss / len(images)
+    print(f"Epoch {t+1}: Average loss = {avg_loss}")
+    all_losses.append(avg_loss)
 
     # then i do this for all images in a training data subset, take the average of them
     gradient_matrix = np.stack(gradient_list)        # Convert list of vectors into a 2D array
     gradient_descent = -1*np.mean(gradient_matrix, axis=0)
 
     # nudge weights by some scaling factor of negative gradient
-    alpha = 0.05
+    alpha = 0.01
+    print("cycle:", t)
 
-    bias_vector_1 += alpha * gradient_descent[0:16]  # first 16 are for bias vector 1
-    bias_vector_2 += alpha * gradient_descent[16:32] # second 16 are for bias vector 2
-    bias_vector_output += alpha * gradient_descent[32:42] # third 10 are for bias vector output
+    offset = 0
 
-    for i in range(len(layer_1_matrix)):
+    # bias_vector_1 update
+    size = bias_vector_1.size
+    bias_vector_1 += alpha * gradient_descent[offset : offset + size].reshape(bias_vector_1.shape)
+    offset += size
+
+    # bias_vector_2 update
+    size = bias_vector_2.size
+    bias_vector_2 += alpha * gradient_descent[offset : offset + size].reshape(bias_vector_2.shape)
+    offset += size
+
+    # bias_vector_output update
+    size = bias_vector_output.size
+    bias_vector_output += alpha * gradient_descent[offset : offset + size].reshape(bias_vector_output.shape)
+    offset += size
+
+    # layer_1_matrix update
+    size = layer_1_matrix.size
+    layer_1_matrix += alpha * gradient_descent[offset : offset + size].reshape(layer_1_matrix.shape)
+    offset += size
+
+    # layer_2_matrix update
+    size = layer_2_matrix.size
+    layer_2_matrix += alpha * gradient_descent[offset : offset + size].reshape(layer_2_matrix.shape)
+    offset += size
+
+    # output_layer_matrix update
+    size = output_layer_matrix.size
+    output_layer_matrix += alpha * gradient_descent[offset : offset + size].reshape(output_layer_matrix.shape)
+    offset += size
+
+    '''
+    bias_vector_1 += (alpha * gradient_descent[0:16].reshape(-1, 1))  # first 16 are for bias vector 1
+    bias_vector_2 += (alpha * gradient_descent[16:32].reshape(-1, 1)) # second 16 are for bias vector 2
+    bias_vector_output += (alpha * gradient_descent[32:42].reshape(-1, 1)) # third 10 are for bias vector output
+
+    for i in range(0, len(layer_1_matrix)):
         lower_bound = 42+i*len(layer_1_matrix[i])
         upper_bound = lower_bound + len(layer_1_matrix[i])
         layer_1_matrix[i] += alpha * gradient_descent[lower_bound : upper_bound]
 
-    for j in range(len(layer_2_matrix)):
+    for j in range(0, len(layer_2_matrix)):
         lower_bound = 42+len(layer_1_matrix)*len(layer_1_matrix[0])  +  j*len(layer_2_matrix[j])
         upper_bound = lower_bound + len(layer_2_matrix[j])
         layer_2_matrix[j] += alpha * gradient_descent[lower_bound : upper_bound]
 
-    for k in range(len(output_layer_matrix)):
+    for k in range(0, len(output_layer_matrix)):
         lower_bound = 42+len(layer_1_matrix)*len(layer_1_matrix[0])+len(layer_2_matrix)*len(layer_2_matrix[0])  +  k*len(output_layer_matrix) 
-        upper_bound = lower_bound + len(output_layer_matrix[j])
+        upper_bound = lower_bound + len(output_layer_matrix[k])
         output_layer_matrix[k] += alpha * gradient_descent[lower_bound : upper_bound]
-
+    '''
+print(gradient_descent)
+print(all_losses)
 
 saveMatrix(bias_vector_1, 'layer1Biases.txt')
 saveMatrix(bias_vector_2, 'layer2Biases.txt')
