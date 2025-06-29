@@ -4,7 +4,7 @@ import os
 
 images = []
 subsetSize = 100
-directory = 'MNIST Dataset JPG format/MNIST - JPG - testing'
+directory = 'MNIST Dataset JPG format/MNIST - JPG - training'
 fileReadingStartIndex = 150
 
 for i in range(0, 10):
