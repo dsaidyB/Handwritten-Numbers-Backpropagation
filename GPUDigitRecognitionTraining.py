@@ -1,10 +1,12 @@
 import cv2
-import cupy as cp  # Switch to CuPy for GPU acceleration, cupy-cuda12x
+import cupy as cp  # GPU-accelerated numpy-like lib, cupy-cuda12x
 import os
 
-print(cp.cuda.runtime.getDeviceCount())
+print("CUDA devices available:", cp.cuda.runtime.getDeviceCount())
 a = cp.array([1, 2, 3])
-print(a.device)  # should say 'CUDA device'
+print("Sample array device:", a.device)  # should print CUDA device info
+
+# 50 subset with 100 epochs --> 5 secs per epoch
 
 # ---------------------- Load Images ----------------------
 images = []
@@ -15,7 +17,7 @@ fileReadingStartIndex = 250
 for i in range(10):
     count = 0
     subdirectory = f"{directory}/{i}"
-    files = sorted(os.listdir(subdirectory))  # Ensure consistent ordering
+    files = sorted(os.listdir(subdirectory))  # consistent ordering
 
     for filename in files[fileReadingStartIndex:]:
         if count >= subsetSize:
@@ -34,7 +36,7 @@ def saveMatrix(matrix, file_path):
     cp.savetxt(file_path, matrix, delimiter=',')
 
 def relu(x):
-    return cp.maximum(0.1 * x, x)
+    return cp.maximum(0.1 * x, x)  # Leaky ReLU
 
 def softmax(x):
     x = x.flatten()
@@ -56,7 +58,7 @@ def compute_loss(images, W1, W2, W3, b1, b2, b3):
         z3 = W3 @ a2 - b3
         y_hat = softmax(z3)
 
-        y = cp.zeros(10)
+        y = cp.zeros((10, 1))
         y[label] = 1
 
         loss += -cp.log(y_hat[label] + eps)
@@ -66,9 +68,10 @@ def compute_loss(images, W1, W2, W3, b1, b2, b3):
 W1 = matrixFromFile('layer1Weights.txt')
 W2 = matrixFromFile('layer2Weights.txt')
 W3 = matrixFromFile('outputLayerWeights.txt')
-b1 = matrixFromFile('layer1Biases.txt')
-b2 = matrixFromFile('layer2Biases.txt')
-b3 = matrixFromFile('outputLayerBiases.txt')
+
+b1 = matrixFromFile('layer1Biases.txt').reshape(-1, 1)  # (16,1)
+b2 = matrixFromFile('layer2Biases.txt').reshape(-1, 1)  # (16,1)
+b3 = matrixFromFile('outputLayerBiases.txt').reshape(-1, 1)  # (10,1)
 
 # ---------------------- Training Loop ----------------------
 all_losses = []

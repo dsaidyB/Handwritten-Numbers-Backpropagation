@@ -3,9 +3,9 @@ import numpy as np
 import os
 
 images = []
-subsetSize = 10
+subsetSize = 100
 directory = 'MNIST Dataset JPG format/MNIST - JPG - testing'
-fileReadingStartIndex = 250
+fileReadingStartIndex = 1000
 
 for i in range(0, 10):
     count = 0

@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 images = []
-subsetSize = 100
+subsetSize = 50
 directory = 'MNIST Dataset JPG format/MNIST - JPG - training'
 fileReadingStartIndex = 250
 
@@ -109,7 +109,7 @@ bias_vector_output = matrixFromFile('outputLayerBiases.txt')
 output_layer_matrix  = matrixFromFile('outputLayerWeights.txt')
 
 all_losses = []
-epochs = 2000
+epochs = 100
 
 for t in range(epochs):
     gradient_list = []
