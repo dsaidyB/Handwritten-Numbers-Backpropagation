@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 images = []
-subsetSize = 50
+subsetSize = 250
 directory = 'MNIST Dataset JPG format/MNIST - JPG - training'
 fileReadingStartIndex = 250
 
@@ -109,7 +109,12 @@ bias_vector_output = matrixFromFile('outputLayerBiases.txt')
 output_layer_matrix  = matrixFromFile('outputLayerWeights.txt')
 
 all_losses = []
-epochs = 100
+
+layer1Outputs = []
+layer2Outputs = []
+outputVectors = []
+
+epochs = 1
 
 for t in range(epochs):
     gradient_list = []
@@ -133,11 +138,16 @@ for t in range(epochs):
         # layer 1 output (16 x 1 matrix)
         layer_1_output = np.matmul(layer_1_matrix, input_vector) - bias_vector_1
         layer_1_processed = relu(layer_1_output)
+        layer1Outputs.append(layer_1_processed)
+                             
         # layer 2 output (16 x 1 matrix)
         layer_2_output = np.matmul(layer_2_matrix, layer_1_processed) - bias_vector_2
         layer_2_processed = relu(layer_2_output)
+        layer2Outputs.append(layer_2_processed)
+                             
         # output vector (10 x 1 matrix)
         output_vector = np.matmul(output_layer_matrix, layer_2_processed) - bias_vector_output
+        outputVectors.append(output_vector)
         final_output_vector = softmax(output_vector)
         print(final_output_vector)
 
@@ -382,3 +392,27 @@ with open('lossVals.txt', 'a') as file:
         for loss in all_losses:
             file.write(str(float(loss)) + '\n')
 
+if (epochs == 1): # only do if we specifically want the max values
+    with open('layer1Outputs.txt', 'w') as file:
+            for output in layer1Outputs:
+                file.write(','.join(map(str, output.flatten())) + '\n')
+
+    layer1Outputs_combined = np.concatenate(layer1Outputs)
+    layer1Outputs_max_val = layer1Outputs_combined.max()
+    print("layer1Outputs_max_val:", layer1Outputs_max_val)
+
+    with open('layer2Outputs.txt', 'w') as file:
+            for output in layer2Outputs:
+                file.write(','.join(map(str, output.flatten())) + '\n')
+    
+    layer2Outputs_combined = np.concatenate(layer2Outputs)
+    layer2Outputs_max_val = layer2Outputs_combined.max()
+    print("layer2Outputs_max_val:", layer2Outputs_max_val)
+
+    with open('outputVectors.txt', 'w') as file:
+            for output in outputVectors:
+                file.write(','.join(map(str, output.flatten())) + '\n')
+    
+    outputVectors_combined = np.concatenate(outputVectors)
+    outputVectors_max_val = outputVectors_combined.max()
+    print("outputVectors_max_val:", outputVectors_max_val)

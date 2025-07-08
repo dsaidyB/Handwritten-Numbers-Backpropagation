@@ -1,0 +1,5 @@
+scale_input:  7.874016e-03
+scale_weight: 3.048379e-03
+scale_accum:  2.400299e-05
+scale_output: 3.149606e-01
+requant_scale: 7.620948e-05
