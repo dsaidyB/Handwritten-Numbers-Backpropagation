@@ -60,8 +60,7 @@ layer_2_matrix = matrixFromFile('layer2Weights_int8.txt')
 bias_vector_output = matrixFromFile('outputLayerBiases_int32.txt')
 output_layer_matrix  = matrixFromFile('outputLayerWeights_int8.txt')
 
-input_scale = 1/127
-
+# input_scale = 1/127
 # layer1: 7.620948/100000, layer2: 9.091541/1000, outputLayer: 9.426532/1000 
 
 layer1_requant_scale = 7.620948/100000      # (x * 10) >> 17
@@ -74,8 +73,7 @@ numTotalImages = len(images)
 for image in images:
     # read image in grayscale mode
     img = cv2.imread(image, 0) 
-    normalized_img = np.round(img / 255.0, decimals=5)
-    int8_img = np.round(normalized_img / input_scale)
+    int8_img = np.round(img / 2)    # (x >> 1)
 
     # convert the image into a input vector (784 x 1 matrix)
     input_vector = int8_img.flatten().reshape(-1,1)
@@ -90,11 +88,11 @@ for image in images:
     layer_2_processed = np.round(relu(layer_2_output) * layer2_requant_scale)
     # print(layer_2_processed)
 
-
     output_vector = np.round((np.matmul(output_layer_matrix, layer_2_processed) - bias_vector_output) * output_layer_requant_scale)
     # print(output_vector)
     # final_output_vector = softmax(output_vector)
     # print(final_output_vector)
+
     predictedDigit = np.argmax(output_vector)
     print("Predicted Digit:", predictedDigit)
 
